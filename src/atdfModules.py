@@ -2,7 +2,7 @@
 import sys,os,getopt
 from lxml import etree
 
-def extractRegisters(registerGroup,registerMode:str):
+def extractRegisters(registerGroup,registerMode,registerParent:str):
   result={}
   regSize=4
   regOffset=0
@@ -39,8 +39,8 @@ def extractRegisters(registerGroup,registerMode:str):
         # PIC32 atdf files do not have proper Offset and Size Attributes
         regOffset=len(result)*4
         regSize=4
-      if regCount > 1:
-        print()
+      #if regCount > 1:
+      #  print("Regcount > 1")
       result[regOffset] = {"name": regName, "size": regSize,"caption": regCaption,"count": regCount}
     elif register.tag == "register-group":
       regGroupUnionTagValue=""
@@ -51,8 +51,10 @@ def extractRegisters(registerGroup,registerMode:str):
       for attrib in register.attrib:
         if attrib == "name":
           regGroupName = register.attrib["name"]
-          if attrib == "caption":
-            regGroupName = register.attrib["caption"]
+          if regGroupName != registerParent and not regGroupName.startswith(registerParent + "_"):
+            regGroupName = registerParent + "_" + regGroupName
+        elif attrib == "caption":
+          regGroupName = register.attrib["caption"]
         elif attrib == "name-in-module":
           regGroupNameInModule = register.attrib["name-in-module"]
         elif attrib == "offset":
@@ -101,12 +103,14 @@ def extractModules(mplabXDir:str,chipName:str):
     for registerGroup in registerGroups:
       rgName=registerGroup.attrib["name"]
       modes=registerGroup.xpath("mode")
+      if rgName != name and not rgName.startswith(name+"_"):
+        rgName = name+"_"+rgName
       if modes==[]:
-        results[rgName] = {"Default":extractRegisters(registerGroup,"Default")}
+        results[rgName] = {"Default":extractRegisters(registerGroup,"Default",name)}
       else:
         results[rgName]={}
         for mode in modes:
-          results[rgName].update({mode.attrib["name"]: extractRegisters(registerGroup,mode.attrib["name"])})
+          results[rgName].update({mode.attrib["name"]: extractRegisters(registerGroup,mode.attrib["name"],name)})
   results = dict(sorted(results.items()))
   return(results)
 
