@@ -1,7 +1,7 @@
 # atdftopas
-Python Routines to convert Microchip atdf files to Freepascal Units
+Python Routines to convert Microchip atdf files to FreePascal Units
 
-Microsoft publishes 'atpack' files that are similar to CMSIS packages for all of their Microcontrollers here:
+Microchip publishes 'atpack' files that are similar to CMSIS packages for all of their Microcontrollers here:
 
 https://packs.download.microchip.com/
 
