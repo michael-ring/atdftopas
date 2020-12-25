@@ -16,15 +16,15 @@ def extractRegistersSimple(registers):
   for registerKey in sorted(registers.keys()):
     if lastOffset != registerKey:
       if registerKey - lastOffset == 1:
-        print(f"    RESERVED{lastReserved:<4} : byte;                 //{lastOffset:04X}")
+        print(f"    RESERVED{lastReserved:<4} : byte;")
       if registerKey - lastOffset == 2:
-        print(f"    RESERVED{lastReserved:<4} : word;                 //{lastOffset:04X}")
+        print(f"    RESERVED{lastReserved:<4} : word;")
       if registerKey - lastOffset == 3:
-        print(f"    RESERVED{lastReserved:<4} : array[1..3] of byte;  //{lastOffset:04X}")
+        print(f"    RESERVED{lastReserved:<4} : array[1..3] of byte;")
       if registerKey - lastOffset == 4:
-        print(f"    RESERVED{lastReserved:<4} : longWord;             //{lastOffset:04X}")
+        print(f"    RESERVED{lastReserved:<4} : longWord;")
       if registerKey - lastOffset > 4:
-        print(f"    RESERVED{lastReserved:<4} : array[1..{registerKey - lastOffset}] of byte; //{lastOffset:04X}")
+        print(f"    RESERVED{lastReserved:<4} : array[1..{registerKey - lastOffset}] of byte;")
       lastReserved += 1
     register = registers[registerKey]
     if register["count"] == 1:
@@ -91,12 +91,25 @@ def main(argv):
     unifyModules(peripherals, modules)
     unifyInterrupts(interrupts)
 
-  print(f"unit {chip.lower()};")
+  if "CORTEX" in extras["architecture"]:
+    interrupts.pop(-15)
+
+  print(f"unit {chip.lower().replace('atsam','sam')};")
   print("interface")
   print("{$PACKRECORDS C}")
   print("{$GOTO ON}")
   print("{$SCOPEDENUMS ON}")
+  print("{$DEFINE INTERFACE}")
+  print("{$UNDEF IMPLEMENTATION}")
+  print("{$DEFINE __" + extras['architecture'].replace('-', '') + "}")
   print()
+  if "CORTEX" in extras["architecture"]:
+    print("const")
+    print(f"  __FPU_PRESENT={extras['__FPU_PRESENT']};")
+    print(f"  __MPU_PRESENT={extras['__MPU_PRESENT']};")
+    print(f"  __NVIC_PRIO_BITS={extras['__NVIC_PRIO_BITS']};")
+    print()
+
   print("type")
   print("  TIRQn_Enum = (")
   lastIrq = list(interrupts.keys())[-1]
@@ -112,26 +125,35 @@ def main(argv):
   print("  );")
   print()
 
-  for module in sorted(modules.keys()):
+  #for module in sorted(modules.keys()):
+  for module in modules:
     for registerMode in modules[module]:
       if registerMode == "Default":
         print(f"  T{module}_Registers = record")
         extractRegistersSimple(modules[module][registerMode])
         print("  end;")
-      elif registerMode == "DEVICE":
-        pass
-      elif registerMode == "HOST":
-        pass
-      elif registerMode == "MODE0" or registerMode == "MODE1" or registerMode == "MODE2" or registerMode == "MODE3":
-        pass
-      elif registerMode == "I2CM" or registerMode == "I2CS" or registerMode == "SPIS"  or registerMode == "SPIM":
-        pass
-      elif registerMode == "USART_EXT" or registerMode == "USART_INT" or registerMode == "COUNT8" or registerMode == "COUNT16" or registerMode == "COUNT32":
-        pass
-      else:
-        raise
         print()
-    print()
+      else:
+        if "_"+registerMode in module:
+          print(f"  T{module}_Registers = record")
+        else:
+          print(f"  T{module}{registerMode}_Registers = record")
+        extractRegistersSimple(modules[module][registerMode])
+        print("  end;")
+        print()
+
+  for module in modules:
+    if len(modules[module]) > 1:
+      count = 0
+      print(f'  T{module}_Registers = record')
+      print(f"  case byte of")
+      for index  in modules[module].keys():
+        print(f"    {count}: ( {index} : T{module}{index}_Registers );")
+        count = count + 1
+
+      print("    end;")
+      print()
+
   print("const")
   for peripheral in sorted(peripherals.keys()):
     print(f"  {peripheral+'_BASE':20}= ${peripherals[peripheral]['offset']:08x};")
@@ -139,10 +161,15 @@ def main(argv):
   print()
   print("var")
   for peripheral in sorted(peripherals.keys()):
-    print(f"  {peripheral:20}: T{peripherals[peripheral]['name-in-module']+'_Registers':20}absolute {peripheral}_BASE;")
+    print(f"  {peripheral:20}: T{peripherals[peripheral]['name-in-module']+'_Registers ':20}absolute {peripheral}_BASE;")
 
   print()
+  print("{$i    cmsis.inc}")
+  print()
   print("implementation")
+  print()
+  print("{$DEFINE IMPLEMENTATION}")
+  print("{$UNDEF INTERFACE}")
   print()
   if extras["architecture"].startswith("AVR"):
     print("{$i avrcommon.inc}")
@@ -155,22 +182,52 @@ def main(argv):
       tmp+=subIrqs[subIrq]['name']+'_'
     print(f"procedure {tmp+'Handler;':25} external name '{tmp}Handler';")
   print()
-  print("procedure _FPC_start; assembler; nostackframe;")
-  print("label")
-  print("  _start;")
-  print("asm")
-  print("  .init")
-  print("  .globl _start")
-  print()
-  print("  jmp _start")
-  for interrupt in interrupts:
-    subIrqs=interrupts[interrupt]
-    tmp=""
-    for subIrq in subIrqs:
-      tmp+=subIrqs[subIrq]['name']+'_'
-    print(f"  jmp {tmp+'Handler;'}")
-  print()
-  print("  {$i start.inc}")
+
+  if "CORTEX" in extras["architecture"]:
+    if "CORTEX-M0" in extras["architecture"]:
+      print("{$i    cortexm0_start.inc}")
+    if "CORTEX-M3" in extras["architecture"]:
+      print("{$i    cortexm3_start.inc}")
+    if "CORTEX-M4" in extras["architecture"]:
+      print("{$i    cortexm4f_start.inc}")
+    print("{$i    cmsis.inc}")
+    print()
+    print("procedure Vectors; assembler; nostackframe;")
+    print("label interrupt_vectors;")
+    print("asm")
+    print('  .section ".init.interrupt_vectors"')
+    print("  interrupt_vectors:")
+    print("  .long _stack_top")
+    print("  .long Startup")
+    lastIrqUsed=-15
+    for interrupt in interrupts:
+      subIrqs=interrupts[interrupt]
+      tmp=""
+      for subIrq in subIrqs:
+        tmp+=subIrqs[subIrq]['name']+'_'
+      if lastIrqUsed < interrupt-1:
+        for empty in range(lastIrqUsed,interrupt-1):
+          print("  .long 0")
+      print(f"  .long {tmp+'Handler;'}")
+      lastIrqUsed=interrupt
+  else:
+    print("procedure _FPC_start; assembler; nostackframe;")
+    print("label")
+    print("  _start;")
+    print("asm")
+    print("  .init")
+    print("  .globl _start")
+    print()
+    print("  jmp _start")
+    for interrupt in interrupts:
+      subIrqs=interrupts[interrupt]
+      tmp=""
+      for subIrq in subIrqs:
+        tmp+=subIrqs[subIrq]['name']+'_'
+      print(f"  jmp {tmp+'Handler;'}")
+    print()
+    print("  {$i start.inc}")
+
   print()
   for interrupt in interrupts:
     subIrqs=interrupts[interrupt]
@@ -184,7 +241,10 @@ def main(argv):
     tmp=""
     for subIrq in subIrqs:
       tmp+=subIrqs[subIrq]['name']+'_'
-    print(f"  .set {tmp+'Handler,':25}Haltproc")
+    if interrupt < 0:
+      print(f"  .set {tmp + 'Handler,':25}_{tmp + 'Handler'}")
+    else:
+      print(f"  .set {tmp+'Handler,':25}Haltproc")
   print("  .text")
   print("  end;")
   print("end.")

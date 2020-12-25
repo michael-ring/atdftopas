@@ -2,6 +2,11 @@
 import sys,os,getopt
 from lxml import etree
 
+def cleanupRegisterName(registerName:str):
+  if registerName in { "TYPE","END","IN","OUT" }:
+    return "&"+registerName
+  return registerName
+
 def extractRegisters(registerGroup,registerMode,registerParent:str):
   result={}
   regSize=4
@@ -15,7 +20,7 @@ def extractRegisters(registerGroup,registerMode,registerParent:str):
       regCaption=""
       for attrib in register.attrib:
         if attrib == "name":
-          regName = register.attrib["name"]
+          regName = cleanupRegisterName(register.attrib["name"])
         elif attrib == "offset":
           regOffset = int(register.attrib["offset"],base=16)
         elif attrib == "rw":
@@ -53,10 +58,12 @@ def extractRegisters(registerGroup,registerMode,registerParent:str):
           regGroupName = register.attrib["name"]
           if regGroupName != registerParent and not regGroupName.startswith(registerParent + "_"):
             regGroupName = registerParent + "_" + regGroupName
+          regGroupName = cleanupRegisterName(regGroupName)
         elif attrib == "caption":
           regGroupName = register.attrib["caption"]
         elif attrib == "name-in-module":
           regGroupNameInModule = register.attrib["name-in-module"]
+          regGroupNameInModule = cleanupRegisterName(regGroupNameInModule)
         elif attrib == "offset":
           regGroupOffset = int(register.attrib["offset"],base=16)
         elif attrib == "size":
@@ -69,7 +76,10 @@ def extractRegisters(registerGroup,registerMode,registerParent:str):
           if (attrib != "modes"):
             print("Unknown Attribute for Register-Group found: "+attrib)
             sys.exit(1)
-      result[regOffset] = {"name": regGroupName, "size": regGroupSize, "caption": regGroupCaption, "count": regGroupCount, "offset": regGroupOffset, "groupname": regGroupNameInModule,"uniontag": regGroupUnionTagValue}
+      if regGroupOffset == 0:
+        result[regOffset] = {"name": regGroupName, "size": regGroupSize, "caption": regGroupCaption, "count": regGroupCount, "offset": regGroupOffset, "groupname": regGroupNameInModule,"uniontag": regGroupUnionTagValue}
+      else:
+        result[regGroupOffset] = {"name": regGroupName, "size": regGroupSize, "caption": regGroupCaption, "count": regGroupCount, "offset": regGroupOffset, "groupname": regGroupNameInModule,"uniontag": regGroupUnionTagValue}
     elif register.tag == "mode":
       for attrib in register.attrib:
         if attrib == "name":
@@ -104,14 +114,24 @@ def extractModules(mplabXDir:str,chipName:str):
       rgName=registerGroup.attrib["name"]
       modes=registerGroup.xpath("mode")
       if rgName != name and not rgName.startswith(name+"_"):
-        rgName = name+"_"+rgName
+        if not "_"+name in rgName:
+          rgName = name+"_"+rgName
       if modes==[]:
         results[rgName] = {"Default":extractRegisters(registerGroup,"Default",name)}
       else:
         results[rgName]={}
         for mode in modes:
           results[rgName].update({mode.attrib["name"]: extractRegisters(registerGroup,mode.attrib["name"],name)})
-  results = dict(sorted(results.items()))
+  #results = dict(sorted(results.items()))
+  results = dict(results.items())
+  results.pop('NVIC')
+  results.pop('SysTick')
+  results.pop('ITM')
+  results.pop('DWT')
+  if 'TPI' in results:
+    results.pop('TPI')
+  results.pop('FPU')
+  results.pop('CoreDebug')
   return(results)
 
 def main(argv):

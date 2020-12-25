@@ -41,6 +41,14 @@ def extractPeripherals(mplabXDir:str,chipName:str):
       results.update({name:{"name-in-module":nameInModule,"offset":offset,"address-space":addressSpace}})
 
   results = dict(sorted(results.items()))
+  results.pop('NVIC')
+  results.pop('SysTick')
+  results.pop('ITM')
+  results.pop('DWT')
+  if 'TPI' in results:
+    results.pop('TPI')
+  results.pop('FPU')
+  results.pop('CoreDebug')
   return(results)
 
 def main(argv):

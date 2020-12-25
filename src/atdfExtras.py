@@ -10,6 +10,17 @@ def extractExtras(mplabXDir:str,chipName:str):
   results={}
   results.update({"family":family})
   results.update({"architecture":architecture})
+
+  params=root.xpath("devices/device/parameters/param")
+  for param in params:
+    name=param.attrib["name"]
+    if name == "__FPU_PRESENT":
+      results.update({"__FPU_PRESENT":param.attrib["value"]})
+    if name == "__MPU_PRESENT":
+      results.update({"__MPU_PRESENT": param.attrib["value"]})
+    if name == "__NVIC_PRIO_BITS":
+      results.update({"__NVIC_PRIO_BITS":param.attrib["value"]})
+
   for addressSpace in addressSpaces:
     name=addressSpace.attrib["name"]
     results[name]={}
