@@ -102,6 +102,12 @@ def main(argv):
   print("{$DEFINE INTERFACE}")
   print("{$UNDEF IMPLEMENTATION}")
   print("{$DEFINE __" + extras['architecture'].replace('-', '') + "}")
+  if extras['__NVIC_PRIO_BITS'] == '2':
+    print("{$DEFINE __NVIC_PRIO_BITS2 }")
+  if extras['__NVIC_PRIO_BITS'] == '3':
+    print("{$DEFINE __NVIC_PRIO_BITS3 }")
+  if extras['__NVIC_PRIO_BITS'] == '4':
+    print("{$DEFINE __NVIC_PRIO_BITS4 }")
   print()
   if "CORTEX" in extras["architecture"]:
     print("const")
