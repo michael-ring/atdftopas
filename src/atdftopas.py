@@ -7,12 +7,13 @@ from atdfModules import extractModules
 from atdfExtras import extractExtras
 from atdfOptimizeAVR import normalizeOffsets,unifyModules,unifyInterrupts
 
-def extractRegistersSimple(registers):
+def extractRegistersSimple(registers,module):
   try:
     lastOffset = sorted(registers.keys())[0]
   except:
     lastOffset = 0
   lastReserved = 0
+
   for registerKey in sorted(registers.keys()):
     if lastOffset != registerKey:
       if registerKey - lastOffset == 1:
@@ -27,7 +28,7 @@ def extractRegistersSimple(registers):
         print(f"    RESERVED{lastReserved:<4} : array[1..{registerKey - lastOffset}] of byte;")
       lastReserved += 1
     register = registers[registerKey]
-    if register["count"] == 1:
+    if register["count"] == 1 and module != "PORT":
       try:
         if register["groupname"] != "":
           print(f"    {register['name']:12} : T{register['groupname']}_Registers;  //{registerKey:04X} {register['caption']}")
@@ -124,7 +125,8 @@ def main(argv):
   print()
   if "CORTEX" in extras["architecture"]:
     print("const")
-    print(f"  __FPU_PRESENT={extras['__FPU_PRESENT']};")
+    if '__FPU_PRESENT' in extras:
+      print(f"  __FPU_PRESENT={extras['__FPU_PRESENT']};")
     print(f"  __MPU_PRESENT={extras['__MPU_PRESENT']};")
     print(f"  __NVIC_PRIO_BITS={extras['__NVIC_PRIO_BITS']};")
     print()
@@ -149,7 +151,7 @@ def main(argv):
     for registerMode in modules[module]:
       if registerMode == "Default":
         print(f"  T{module}_Registers = record")
-        extractRegistersSimple(modules[module][registerMode])
+        extractRegistersSimple(modules[module][registerMode],module)
         print("  end;")
         print()
       else:
@@ -157,7 +159,7 @@ def main(argv):
           print(f"  T{module}_Registers = record")
         else:
           print(f"  T{module}{registerMode}_Registers = record")
-        extractRegistersSimple(modules[module][registerMode])
+        extractRegistersSimple(modules[module][registerMode],module)
         print("  end;")
         print()
 

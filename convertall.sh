@@ -14,7 +14,7 @@ function compilesam {
   PLATFORM=$1
   case $PLATFORM in
     SAMD21) comp=armv6m ;
-            fpu=none ;
+            fpu=soft ;
             filebase=ATSAMD21 ;;
     SAMD51) comp=armv7em ;
             fpu=FPV4_SP_D16 ;
@@ -37,6 +37,6 @@ function compilesam {
   done
 }
 
-#compilesam SAMD21
+compilesam SAMD21
 compilesam SAMD51
 #exit 1

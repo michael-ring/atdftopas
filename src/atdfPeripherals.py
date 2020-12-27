@@ -43,12 +43,16 @@ def extractPeripherals(mplabXDir:str,chipName:str):
   results = dict(sorted(results.items()))
   results.pop('NVIC')
   results.pop('SysTick')
-  results.pop('ITM')
-  results.pop('DWT')
+  if 'ITM' in results:
+    results.pop('ITM')
+  if 'DWT' in results:
+    results.pop('DWT')
   if 'TPI' in results:
     results.pop('TPI')
-  results.pop('FPU')
-  results.pop('CoreDebug')
+  if 'FPU' in results:
+    results.pop('FPU')
+  if 'CoreDebug' in results:
+    results.pop('CoreDebug')
   return(results)
 
 def main(argv):
