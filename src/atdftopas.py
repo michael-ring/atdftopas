@@ -91,9 +91,6 @@ def main(argv):
     unifyModules(peripherals, modules)
     unifyInterrupts(interrupts)
 
-  if "CORTEX" in extras["architecture"]:
-    interrupts.pop(-15)
-
   print(f"unit {chip.lower().replace('atsam','sam')};")
   print("interface")
   print("{$PACKRECORDS C}")

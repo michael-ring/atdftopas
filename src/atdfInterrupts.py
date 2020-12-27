@@ -40,6 +40,17 @@ def extractInterrupts(mplabXDir:str,chipName:str):
     else:
       results[index].update({irqIndex:{"name": name, "caption": caption, "moduleInstance": moduleInstance,"irq-caption":irqCaption,"irq-name":irqName}})
   results = dict(sorted(results.items()))
+  if chipName.startswith('ATSAMD51'):
+    results.pop(-15)
+  if chipName.startswith('ATSAMD51'):
+      for key,interrupt in results.items():
+        if "moduleInstance" in interrupt[key] and interrupt[key]["moduleInstance"] != "":
+          if interrupt[key]["moduleInstance"] != interrupt[key]["name"]:
+            interrupt[key]["name"] = interrupt[key]["moduleInstance"]
+            if not (key-1 in results) or (not results[key-1][key-1]["name"].startswith(interrupt[key]["moduleInstance"])):
+              interrupt[key]["name"]=interrupt[key]["name"]+"_0"
+            else:
+              interrupt[key]["name"]=interrupt[key]["name"]+"_"+str(int(results[key-1][key-1]["name"].replace(interrupt[key]["name"]+"_",""))+1)
   return(results)
 
 def main(argv):
